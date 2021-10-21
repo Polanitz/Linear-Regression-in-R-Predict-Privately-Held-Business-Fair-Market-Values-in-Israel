@@ -1,0 +1,74 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+library(Hmisc)
+library(psych)
+library(car)
+library(Metrics)
+
+data <- read.csv('PolanitzerBusinessValue.csv')
+data <- DropNA(data)
+dim(data)
+names(data)
+
+head(data)
+
+summary(data)
+
+pairs.panels(data, col='red')
+
+
+FMVp <- data$Equity_Value
+BV <- data$Book_Value
+FL <- data$Total_Liabilities / data$Total_Assets
+TR <- data$Total_Revenues
+WC <- data$Working_Capital
+RE <- data$Retained_Earnings
+EBIT <- data$EBIT
+
+data1 <- data.frame(FMVp, BV, FL, TR, WC, RE, EBIT)
+head(data1)
+
+FL_TR <- data1$FL * data1$TR
+FL_WC <- data1$FL * data1$WC
+FL_RE <- data1$FL * data1$RE
+FL_EBIT <- data1$FL * data1$EBIT
+
+data2 <- data.frame(FMVp, BV, FL_TR, FL_WC, FL_RE, FL_EBIT)
+head(data2)
+
+fit <-  lm(FMVp ~ 0 + BV + FL_TR + FL_WC + FL_RE + FL_EBIT, data=data2)
+summary(fit)
+
+set.seed(42)
+split <- sample(seq_len(nrow(data2)), size = floor(0.67 * nrow(data2)))
+train <- data2[split, ]
+test <- data2[-split, ]
+dim(train); dim(test)
+
+train <- subset(train, select=c(FMVp, BV, FL_TR, FL_WC, FL_RE, FL_EBIT))
+fit1 <-  lm(FMVp ~ 0 + BV + FL_TR + FL_WC + FL_RE + FL_EBIT, data=train)
+summary(fit1)
+print(summary(fit1))
+
+confint(fit1, conf.level=0.95)
+
+test <- subset(test, select=c(FMVp, BV, FL_TR, FL_WC, FL_RE, FL_EBIT))
+prediction <- predict(fit1, newdata = test)
+
+head(prediction)
+
+head(test$FMVp)
+
+SSE <- sum((test$FMVp - prediction) ^ 2)
+SST <- sum((test$FMVp - mean(test$FMVp)) ^ 2)
+RS <- 1 - SSE/SST
+print(paste('R squared of the linear regression on test set:', RS))
+
+RMSE = rmse(test$FMVp, prediction)
+print(paste('RMSE of the linear regression on test set:', RMSE))
+
+MAE = mae(test$FMVp, prediction)
+print(paste('MAE of the linear regression on test set:', MAE))
